@@ -75,7 +75,7 @@ function ConvertToMarkdownFile() {
   
   // Create folder
   var id = DocumentApp.getActiveDocument().getId();
-  var file = DocsList.getFileById(id);
+  var file = DriveApp.getFileById(id);
   var parents = file.getParents();
   
   if(parents.length > 1) {
@@ -90,13 +90,13 @@ function ConvertToMarkdownFile() {
   }
   
   // Use first parent
-  var parent = parents[0];
+  var parent = parents.next();
+  var siblings = parent.getFolders();
   
-  // Check if target folder exists  
-  for(var folder in parent.getFolders()) {
-    folder = parent.getFolders()[folder]; 
-    
-    if(folder.getName() == 'target') {
+  // Check if target folder exists
+  while (siblings.hasNext()) {
+    var folder = siblings.next();
+    if(folder.getName() == '_md') {
       var ui = DocumentApp.getUi(); 
       var result = ui.alert(
         'Existing target folder found!',
@@ -115,7 +115,7 @@ function ConvertToMarkdownFile() {
   
   // Create new target folder 
   Logger.log("Creating output folder..."); 
-  var found = parent.createFolder("target"); 
+  var found = parent.createFolder("_md"); 
   
   // Write all files to target folder
   for(var file in convertedDoc.files) {
