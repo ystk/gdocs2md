@@ -71,63 +71,29 @@ function ConvertToMarkdownEmail() {
 // Convert current document to file and save it to GDrive
 function ConvertToMarkdownFile() {
   // Convert to markdwon
-  var convertedDoc = markdown(); 
+  var convertedDoc = markdown();
+  var outputName = DocumentApp.getActiveDocument().getName() + "-exported.md";
   
-  // Create folder
-  var id = DocumentApp.getActiveDocument().getId();
-  var file = DriveApp.getFileById(id);
-  var parents = file.getParents();
+  var ui = DocumentApp.getUi(); 
+  var result = ui.alert(
+    'This will delete files named "' + outputName + '"',
+    'Are you ok with that?',
+    ui.ButtonSet.YES_NO);
   
-  if(parents.length > 1) {
-    Logger.log("File has multiple parent directory. Script does not work in this case"); 
-    DocumentApp.getUi().alert("Document must not be in multiple directories");
-    return; 
-  }
-  
-  if(parents.length == 0) {
-    DocumentApp.getUi().alert("Document has to be in a directory for the export"); 
-    return; 
-  }
-  
-  // Use first parent
-  var parent = parents.next();
-  var siblings = parent.getFolders();
-  
-  // Check if target folder exists
-  while (siblings.hasNext()) {
-    var folder = siblings.next();
-    if(folder.getName() == '_md') {
-      var ui = DocumentApp.getUi(); 
-      var result = ui.alert(
-        'Existing target folder found!',
-        'Delete all contents of target folder?',
-        ui.ButtonSet.YES_NO);
-      if(result == ui.Button.YES) {
-        Logger.log("Trashing target folder..."); 
-        folder.setTrashed(true); 
-        break; 
-      } else {
-        Logger.log("Do not delete target folder, stopping!"); 
-        return; 
-      }
+  if(result == ui.Button.YES) {
+    var files = DriveApp.getFilesByName(outputName);
+    while (files.hasNext()) {
+      var file = files.next();
+      file.setTrashed(true); 
+      Logger.log(file.getName());
     }
+    
+    // create file in Drive root
+    DriveApp.createFile(outputName, convertedDoc.text, "text/plain");
+  } else {
+    Logger.log("Do not delete target folder, stopping!"); 
+    return; 
   }
-  
-  // Create new target folder 
-  Logger.log("Creating output folder..."); 
-  var found = parent.createFolder("_md"); 
-  
-  // Write all files to target folder
-  for(var file in convertedDoc.files) {
-    file = convertedDoc.files[file];
-    var blob = file.blob.copyBlob();
-    var name = file.name; 
-    blob.setName(name); 
-    found.createFile(blob); 
-  }
-  
-  // Write mardown file to target folder
-  found.createFile(DocumentApp.getActiveDocument().getName() + ".md", convertedDoc.text, "text/plain");   
 }
 
 function processSection(section) {
@@ -333,7 +299,7 @@ function handleText(doc, state) {
     // Handle font family
     if(doc.getFontFamily(index)) {
       var font = doc.getFontFamily(index); 
-      var sourceFont = font.COURIER_NEW; 
+      var sourceFont = "Courier New"; 
       
       if (!state.inSource && font === sourceFont) {
         // Scan left until text without source font is found
@@ -395,18 +361,13 @@ function handleListItem(item, state, depth) {
     case DocumentApp.GlyphType.BULLET:
     case DocumentApp.GlyphType.HOLLOW_BULLET:
     case DocumentApp.GlyphType.SQUARE_BULLET: 
-      prefix += '* ';
+      prefix += '- ';
       break;
     case DocumentApp.GlyphType.NUMBER:
-      var key = item.getListId() + '.' + item.getNestingLevel();
-      Logger.log("key " + key); 
-      var counter = state.listCounters[key] || 0;
-      counter++;
-      state.listCounters[key] = counter;
-      prefix += counter + '. ';
+      prefix += '1. ';
       break;
     default:
-      prefix += '* ';
+      prefix += '- ';
       break;
   }
   
